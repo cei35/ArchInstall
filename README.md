@@ -11,17 +11,7 @@ All installation scripts are written in Bash.
 
 ### Partition layout (Example for 64Go disk)
     
-sda                     64G   disk
-├─sda1                  512M  part   /boot       ef00
-└─sda2                  63.5G part                8309
-  └─vg_chif             63.5G crypt
-    ├─vg_chif-lv_swap   2G     lvm    [SWAP]
-    ├─vg_chif-lv_root   8G     lvm    /
-    ├─vg_chif-lv_var    14G    lvm    /var
-    ├─vg_chif-lv_usr    18G    lvm    /usr
-    ├─vg_chif-lv_srv    2G     lvm    /srv
-    └─vg_chif-lv_home   100%FREE lvm /home
-
+![alt text](Images/partitionning.png "Partition layout")
 
 - Base system installation  
 - Post-installation steps  
