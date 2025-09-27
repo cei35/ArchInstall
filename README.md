@@ -11,7 +11,7 @@ All installation scripts are written in Bash.
 
 ### Partition layout (Example for 64Go disk)
     
-![alt text](Images/partitionning.png "Partition layout")
+![alt text](Images/partitioning.png "Partition layout")
 
 - Base system installation  
 - Post-installation steps  
