@@ -109,7 +109,7 @@ tmpfs /var/log tmpfs nosuid,nodev,noexec 0 0" >> /etc/fstab
 sed -i '/\/boot/ s/noexec/noexec,noauto/' /etc/fstab
 EOF
 
-run_step "Installing base system" /bin/bash -e <<EOF
+run_step "Installing packages" /bin/bash -e <<EOF
 chmod -R 700 /etc/iptables
 
 pacman -Syu --needed --noconfirm make base-devel git cron wget lynx nnn python3 python-pip go sudo openssh
@@ -123,33 +123,36 @@ echo "localadm:$password" | chpasswd
 password=$(dialog --title "Set rescue password" --insecure --passwordbox "Enter password for rescue:" 8 60 3>&1 1>&2 2>&3)
 echo "rescue:$password" | chpasswd
 
-run_step "Configuring sudoers" /bin/bash -e <<EOF
+run_step "Configuring sudoers" /bin/bash -c '
 echo "localadm ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
 echo "rescue ALL=(ALL:ALL) ALL" >> /etc/sudoers
 
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 passwd -l root
 
-echo "#!/bin/bash
+cat <<'"'"'EOF'"'"' > /usr/local/bin/pacman
+#!/bin/bash
 
 if ! findmnt -n /boot &>/dev/null; then
-	echo 'Error : /boot is not mounted !'
-	exit 1
+    echo "Error : /boot is not mounted !"
+    exit 1
 fi
 
-exec /usr/bin/pacman \"$@\"" > /usr/local/bin/pacman
+exec /usr/bin/pacman "$@"
+EOF
 
 chmod +x /usr/local/bin/pacman
-EOF
+'
 
-su - localadm -s /bin/bash <<'EOF'
+run_step "Setup localadm" su - localadm -s /bin/bash -c '
 cd ~
-echo 'alias ll="ls -lahF"' >> ~/.bashrc
-echo "PS1='\${debian_chroot:+(\$debian_chroot)}\[\033[01;33m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> ~/.bashrc
+echo "alias ll=\"ls -lahF\"" >> ~/.bashrc
+echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;33m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '\''" >> ~/.bashrc
 
 git clone https://aur.archlinux.org/yay.git
-makepkg -D ~/yay --syncdeps --install --needed --noconfirm --clean
-EOF
+cd yay
+makepkg --syncdeps --install --needed --noconfirm --clean
+'
 
 # prolly nothing to update but just in case
 yay -Syu

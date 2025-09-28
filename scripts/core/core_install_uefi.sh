@@ -182,6 +182,7 @@ mkfs.ext4 /dev/vg_chif/lv_home
 mkswap /dev/vg_chif/lv_swap
 '
 
+# Mount filesystems (Home is mounted without noexec to allow user scripts)
 export part1
 run_step "Mounting filesystems" bash -c "
 echo 'Mounting files system'
@@ -190,7 +191,7 @@ mount --mkdir $part1 /mnt/boot -o nosuid,nodev,noexec
 mount --mkdir /dev/vg_chif/lv_var /mnt/var -o nosuid,nodev,noexec
 mount --mkdir /dev/vg_chif/lv_usr /mnt/usr -o nodev
 mount --mkdir /dev/vg_chif/lv_srv /mnt/srv -o nosuid,nodev,noexec
-mount --mkdir /dev/vg_chif/lv_home /mnt/home -o nosuid,nodev,noexec
+mount --mkdir /dev/vg_chif/lv_home /mnt/home -o nosuid,nodev
 swapon /dev/vg_chif/lv_swap
 "
 
