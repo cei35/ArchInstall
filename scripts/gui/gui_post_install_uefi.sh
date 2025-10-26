@@ -275,6 +275,11 @@ else
     exit 1
 fi
 
+dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
+[[ $? -ne 0 ]] && exit 0
+
+reboot
+
 # After:
 # KDE
 # Sway

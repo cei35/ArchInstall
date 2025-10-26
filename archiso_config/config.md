@@ -16,22 +16,29 @@ sudo pacman -Sy archiso
 cp -r /usr/share/archiso/configs/releng/ iso/
 ```
 
-3. **Copy scripts into the ISO**:
+3. **Add dialog package to the base system**:
+
+In packages.x86_64, add dialog:
+```bash
+dialog
+```
+
+4. **Copy scripts into the ISO**:
 
 ```bash
 cp install.sh post_install.sh iso/airootfs/root/
 ```
 
-4. **Modify .zlogin to execute scripts on first boot**:
+5. **Modify .zlogin to execute scripts on first boot**:
 
 iso/airootfs/root/.zlogin :
 
 ```bash
-chmod +x ~/install_uefi.sh
-~/install_uefi.sh
+chmod +x ~/install.sh
+~/install.sh
 ```
 
-4. **Build the ISO**:
+6. **Build the ISO**:
 
 ```bash
 mkarchiso -v -w ~/work -o ~/out iso/
