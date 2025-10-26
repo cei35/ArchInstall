@@ -138,16 +138,16 @@ done
 echo "rescue:$password" | chpasswd
 
 # Create main user without sudo rights
-$name=$(dialog --title "Main user" --inputbox "Enter main username:" 8 60 3>&1 1>&2 2>&3)
+name=$(dialog --title "Main user" --inputbox "Enter main username:" 8 60 3>&1 1>&2 2>&3)
 [ -z "$name" ] && exit 1
 
 useradd -m -U -s /bin/bash "$name"
 
 while :; do
-    password=$(dialog --title "Set $name password" --insecure --passwordbox "Enter password for rescue:" 8 60 3>&1 1>&2 2>&3) || exit 1
-    password_v2=$(dialog --title "Confirm $name password" --insecure --passwordbox "Enter password for rescue:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    pass=$(dialog --title "Set $name password" --insecure --passwordbox "Enter password for $name:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    pass_v2=$(dialog --title "Confirm $name password" --insecure --passwordbox "Enter password for $name:" 8 60 3>&1 1>&2 2>&3) || exit 1
 
-    [[ "$password" == "$password_v2" ]] && break
+    [[ "$pass" == "$pass_v2" ]] && break
     dialog --title "ArchInstall - $name password mismatch" --msgbox "Passwords do not match. Please try again." 8 60
 done
 echo "$name:$password" | chpasswd

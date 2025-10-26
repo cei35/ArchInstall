@@ -138,16 +138,16 @@ done
 echo "rescue:$password" | chpasswd
 
 # Create main user without sudo rights
-$name=$(dialog --title "Main user" --inputbox "Enter main username:" 8 60 3>&1 1>&2 2>&3)
+name=$(dialog --title "Main user" --inputbox "Enter main username:" 8 60 3>&1 1>&2 2>&3)
 [ -z "$name" ] && exit 1
 
 useradd -m -U -s /bin/bash "$name"
 
 while :; do
-    password=$(dialog --title "Set $name password" --insecure --passwordbox "Enter password for rescue:" 8 60 3>&1 1>&2 2>&3) || exit 1
-    password_v2=$(dialog --title "Confirm $name password" --insecure --passwordbox "Enter password for rescue:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    pass=$(dialog --title "Set $name password" --insecure --passwordbox "Enter password for $name:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    pass_v2=$(dialog --title "Confirm $name password" --insecure --passwordbox "Enter password for $name:" 8 60 3>&1 1>&2 2>&3) || exit 1
 
-    [[ "$password" == "$password_v2" ]] && break
+    [[ "$pass" == "$pass_v2" ]] && break
     dialog --title "ArchInstall - $name password mismatch" --msgbox "Passwords do not match. Please try again." 8 60
 done
 echo "$name:$password" | chpasswd
@@ -192,10 +192,6 @@ echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m
 # prolly nothing to update but just in case
 run_step "Update system" yay -Syu
 
-dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
-[[ $? -ne 0 ]] && exit 0
-
-
 # Gui Environment setup
 
 user=$name
@@ -224,7 +220,7 @@ elif [ "$gui_env" = 2 ]; then
 
 # Hyprland
 elif [ "$gui_env" = 3 ]; then
-    run_step "Installing Hyprland" yay -S --noconfirm hyprland foot waybar bemenu bemenu-wayland swaybg swaylock-clock mako thunar ttf-jetbrains-mono-nerd noto-fonts-emoji \
+    run_step "Installing Hyprland" yay -S --needed--noconfirm hyprland foot waybar bemenu bemenu-wayland swaybg swaylock-clock mako thunar ttf-jetbrains-mono-nerd noto-fonts-emoji \
     polkit-gnome pipewire pipewire-pulse wireplumber pamixer brightnessctl gvfs xdg-desktop-portal-hyprland sddm sddm-sugar-dark wlroots librewolf-bin \
     thunar-archive-plugin hyprshot qimgv-git mousepad atril
     
@@ -245,10 +241,10 @@ Current=sugar-dark' > /etc/sddm.conf
     cp $user/.config/wallpaper.jpg /usr/share/sddm/themes/sugar-dark/wallpaper.jpg
     sed -i 's|^Background=.*|Background="wallpaper.jpg"|' theme.conf
 
-    sudo systemctl enable sddm
+    systemctl enable sddm
 
     # Swayidle (must be run as user)
-    pacman -Sy swayidle --noconfirm
+    pacman -Sy swayidle --noconfirm --needed
     mkdir -p $user/.config/systemd/user
     cat << EOF >> $user/.config/systemd/user/screen-saver.service
 [Unit]
@@ -271,7 +267,7 @@ EOF
 
 # Gnome
 elif [ "$gui_env" = 4 ]; then
-    run_step "Installing Gnome" pacman -Sy --noconfirm xorg xorg-server gnome gdm
+    run_step "Installing Gnome" pacman -Sy --noconfirm --needed xorg xorg-server gnome gdm
     systemctl enable gdm
 
 else
