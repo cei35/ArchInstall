@@ -103,18 +103,23 @@ EOF
     esac
     
     # Test network connectivity
+    for i in {1..10}; do # wait up to 10 seconds for an IP address
+        ip addr show "$iface" | grep -q "inet " && break
+        sleep 1
+    done
+
     dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
     if ! ping -c 3 archlinux.org &>/dev/null; then
-        dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings." 8 60
+        dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
         exit 1
     fi
 fi
 
-# Affiche les disques
+# disk overview
 lsblk > /tmp/lsblk
 dialog --title "ArchInstall - Disks overview" --textbox /tmp/lsblk 20 80
 
-# Prépare le menu disque
+# disk menu
 disks=()
 while read -r line; do
     name=$(echo $line | awk '{print $1}')

@@ -23,6 +23,8 @@ run_step() {
     fi
 }
 
+# Check internet connectivity
+dialog --title "Network Configuration" --infobox "Checking network connectivity..." 8 60
 # Network configuration
 choice=$(dialog --stdout --title "Network configuration" --menu "Choose network setup:" 15 60 3 \
     1 "Ethernet (DHCP)" \
@@ -39,25 +41,27 @@ iface=$(dialog --stdout --title "Select interface" --menu "Choose network interf
 [ -z "$iface" ] && exit 1
 
 case $choice in
-  1)
-    run_step "Configuring $iface" /bin/bash -e <<EOF
-    echo "[Match]
+1)
+    cat > /etc/systemd/network/$iface.network <<EOF
+[Match]
 Name=$iface
 
 [Network]
-DHCP=yes" > /etc/systemd/network/$iface.network
+DHCP=yes
 EOF
+
+systemctl enable --now systemd-networkd
     ;;
 
-  2)
+2)
     systemctl enable --now iwd
 
-    run_step "Configuring $iface" /bin/bash -e <<EOF
-    echo "[Match]
+        cat > /etc/systemd/network/$iface.network <<EOF
+[Match]
 Name=$iface
 
 [Network]
-DHCP=yes" > /etc/systemd/network/$iface.network
+DHCP=yes
 EOF
 
     iwctl station "$iface" scan
@@ -72,22 +76,25 @@ EOF
     iwctl --passphrase "$wifi_pass" station "$iface" connect "$ssid"
     ;;
 
-  3)
+3)
     ip_addr=$(dialog --stdout --inputbox "Enter static IP (ex: 192.168.1.50/24):" 8 60)
     gateway=$(dialog --stdout --inputbox "Enter Gateway IP:" 8 60)
 
-    run_step "Configuring $iface" /bin/bash -e <<EOF
-    echo "[Match]
+    cat > /etc/systemd/network/$iface.network <<EOF
+[Match]
 Name=$iface
 
 [Network]
 Address=$ip_addr
-Gateway=$gateway" > /etc/systemd/network/$iface.network
+Gateway=$gateway
 EOF
+
+systemctl enable --now systemd-networkd
     ;;
 esac
 
-systemctl enable --now systemd-networkd
+cp /etc/resolv.conf{,.bak}
+cp /etc/systemd/timesyncd.conf{,.bak}
 
 run_step "Setting up DNS and NTP" /bin/bash -e <<EOF
 echo "DNS=8.8.8.8
@@ -100,6 +107,18 @@ systemctl enable --now systemd-resolved
 echo "NTP=fr.pool.ntp.org" >> /etc/systemd/timesyncd.conf
 systemctl enable --now systemd-timesyncd
 EOF
+
+# Test network connectivity
+for i in {1..10}; do # wait up to 10 seconds for an IP address
+    ip addr show "$iface" | grep -q "inet " && break
+    sleep 1
+done
+
+dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
+if ! ping -c 3 archlinux.org &>/dev/null; then
+    dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
+    exit 1
+fi
 
 run_step "pseudo filesystems" /bin/bash -e <<EOF
 echo "proc /proc proc defaults,hidepid=2 0 0
@@ -190,7 +209,7 @@ echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m
 '
 
 # prolly nothing to update but just in case
-yay -Syu
+run_step "Update system" yay -Syu
 
 dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
 [[ $? -ne 0 ]] && exit 0
