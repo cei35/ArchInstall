@@ -30,35 +30,27 @@ dialog --title "ArchInstall" --yesno "You have chosen UEFI Install.\nDo you want
 # Set keyboard to French
 loadkeys fr
 
-# Network configuration
-choice=$(dialog --stdout --title "Network configuration" --menu "Choose network setup:" 15 60 3 \
-    1 "Ethernet (DHCP)" \
-    2 "Wi-Fi (iwd)" \
-    3 "Static IP")
+# Check internet connectivity
+dialog --title "ArchInstall" --infobox "Checking network connectivity..." 8 60
+if ! ping -c 3 archlinux.org &>/dev/null; then
 
-interfaces=($(ls /sys/class/net | grep -v lo))
-choices=""
-for i in "${interfaces[@]}"; do
-    choices+="$i $i "
-done
+    # Network configuration
+    choice=$(dialog --stdout --title "Network configuration" --menu "Choose network setup:" 15 60 3 \
+        1 "Ethernet (DHCP)" \
+        2 "Wi-Fi (iwd)" \
+        3 "Static IP")
 
-iface=$(dialog --stdout --title "Select interface" --menu "Choose network interface:" 15 60 5 $choices)
-[ -z "$iface" ] && exit 1
+    interfaces=($(ls /sys/class/net | grep -v lo))
+    choices=""
+    for i in "${interfaces[@]}"; do
+        choices+="$i $i "
+    done
 
-case $choice in
-  1)
-    cat > /etc/systemd/network/$iface.network <<EOF
-[Match]
-Name=$iface
+    iface=$(dialog --stdout --title "Select interface" --menu "Choose network interface:" 15 60 5 $choices)
+    [ -z "$iface" ] && exit 1
 
-[Network]
-DHCP=yes
-EOF
-    ;;
-
-  2)
-    systemctl enable --now iwd
-
+    case $choice in
+    1)
         cat > /etc/systemd/network/$iface.network <<EOF
 [Match]
 Name=$iface
@@ -67,23 +59,37 @@ Name=$iface
 DHCP=yes
 EOF
 
-    iwctl station "$iface" scan
-    networks=$(iwctl station "$iface" get-networks | awk 'NR>4 {print $2 " " $2}' | sed '/^$/d')
+    systemctl enable --now systemd-networkd
+        ;;
 
-    ssid=$(dialog --stdout --title "Wi-Fi" --menu "Select SSID:" 20 60 10 $networks)
-    [ -z "$ssid" ] && exit 1
+    2)
+        systemctl enable --now iwd
 
-    wifi_pass=$(dialog --stdout --title "Wi-Fi Password" --insecure --passwordbox "Enter password for $ssid:" 8 60)
-    [ -z "$wifi_pass" ] && exit 1
+            cat > /etc/systemd/network/$iface.network <<EOF
+[Match]
+Name=$iface
 
-    iwctl --passphrase "$wifi_pass" station "$iface" connect "$ssid"
-    ;;
+[Network]
+DHCP=yes
+EOF
 
-  3)
-    ip_addr=$(dialog --stdout --inputbox "Enter static IP (ex: 192.168.1.50/24):" 8 60)
-    gateway=$(dialog --stdout --inputbox "Enter Gateway IP:" 8 60)
+        iwctl station "$iface" scan
+        networks=$(iwctl station "$iface" get-networks | awk 'NR>4 {print $2 " " $2}' | sed '/^$/d')
 
-    cat > /etc/systemd/network/$iface.network <<EOF
+        ssid=$(dialog --stdout --title "Wi-Fi" --menu "Select SSID:" 20 60 10 $networks)
+        [ -z "$ssid" ] && exit 1
+
+        wifi_pass=$(dialog --stdout --title "Wi-Fi Password" --insecure --passwordbox "Enter password for $ssid:" 8 60)
+        [ -z "$wifi_pass" ] && exit 1
+
+        iwctl --passphrase "$wifi_pass" station "$iface" connect "$ssid"
+        ;;
+
+    3)
+        ip_addr=$(dialog --stdout --inputbox "Enter static IP (ex: 192.168.1.50/24):" 8 60)
+        gateway=$(dialog --stdout --inputbox "Enter Gateway IP:" 8 60)
+
+        cat > /etc/systemd/network/$iface.network <<EOF
 [Match]
 Name=$iface
 
@@ -91,8 +97,18 @@ Name=$iface
 Address=$ip_addr
 Gateway=$gateway
 EOF
-    ;;
-esac
+
+    systemctl enable --now systemd-networkd
+        ;;
+    esac
+    
+    # Test network connectivity
+    dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
+    if ! ping -c 3 archlinux.org &>/dev/null; then
+        dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings." 8 60
+        exit 1
+    fi
+fi
 
 # Affiche les disques
 lsblk > /tmp/lsblk
@@ -135,7 +151,14 @@ run_step "Formatting partitions" mkfs.fat -F 32 $part1
 run_step "Formatting partitions" mkfs.ext4 $part2
 
 # LUKS
-passphrase=$(dialog --title "ArchInstall - LUKS" --insecure --passwordbox "Enter LUKS passphrase:" 8 60 3>&1 1>&2 2>&3)
+
+while :; do
+    passphrase=$(dialog --title "ArchInstall - LUKS" --insecure --passwordbox "Enter LUKS passphrase:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    passphrase_v2=$(dialog --title "ArchInstall - LUKS" --insecure --passwordbox "Confirm LUKS passphrase:" 8 60 3>&1 1>&2 2>&3) || exit 1
+
+    [[ "$passphrase" == "$passphrase_v2" ]] && break
+    dialog --title "ArchInstall - LUKS passphrase mismatch" --msgbox "Passphrases do not match. Please try again." 8 60
+done
 
 dialog --infobox "Encrypting $part2. This could take a while..." 8 60
 
@@ -151,6 +174,8 @@ fi
 run_step "Setting up LVM" pvcreate /dev/mapper/lvm_chif
 run_step "Setting up LVM" vgcreate vg_chif /dev/mapper/lvm_chif
 
+disk_size_gb=$(( $(lsblk -dbno SIZE /dev/$disk) / 1024 / 1024 / 1024 ))
+export disk_size_gb
 run_step "Creating logical volumes" bash -c '
 if (( disk_size_gb <= 128 )); then # 64 Go
     swap="2G";root="8G";var="14G";usr="18G";srv="2G"
@@ -200,7 +225,14 @@ dialog --title "ArchInstall - Partitioning" --textbox /tmp/lsblk 20 80
 dialog --title "ArchInstall - Confirm partitioning" --yesno "Configuration OK?" 8 60 || exit 0
 
 hostname=$(dialog --title "ArchInstall - Hostname" --inputbox "Enter hostname:" 8 60 3>&1 1>&2 2>&3)
-password=$(dialog --title "ArchInstall - Root password" --insecure --passwordbox "Enter root password:" 8 60 3>&1 1>&2 2>&3)
+
+while :; do
+    password=$(dialog --title "ArchInstall - Root password" --insecure --passwordbox "Enter root password:" 8 60 3>&1 1>&2 2>&3) || exit 1
+    password_v2=$(dialog --title "ArchInstall - Root password" --insecure --passwordbox "Confirm root password:" 8 60 3>&1 1>&2 2>&3) || exit 1
+
+    [[ "$password" == "$password_v2" ]] && break
+    dialog --title "ArchInstall - root password mismatch" --msgbox "Passwords do not match. Please try again." 8 60
+done
 
 # Install base system
 run_step "Updating GPG keys" pacman-key --init

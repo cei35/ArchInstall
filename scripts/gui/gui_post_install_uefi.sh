@@ -190,9 +190,98 @@ echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m
 '
 
 # prolly nothing to update but just in case
-yay -Syu
+run_step "Update system" yay -Syu
 
 dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
 [[ $? -ne 0 ]] && exit 0
 
-reboot
+
+# Gui Environment setup
+
+user=$name
+gui_env=""
+
+# Choose GUI environment
+gui_env=$(dialog --stdout --title "Choose GUI environment" --menu "Choose your preferred GUI environment:" 15 60 3 \
+    1 "None (core only)" \
+    2 "XFCE" \
+    3 "HYPRLAND" \
+    4 "GNOME")
+
+# Set system locale to French (just in case)
+localectl set-x11-keymap fr
+
+if [ "$gui_env" = 1 ]; then
+    dialog --title "ArchInstall - No GUI" --msgbox "No GUI environment selected, installation will be core only. Exiting..." 8 60
+    exit 0
+
+# Xfce
+elif [ "$gui_env" = 2 ]; then
+    git clone https://github.com/cei35/Xfce4 # Proposed Xfce config
+    cd Xfce4/
+    chmod +x install.sh
+    run_step "Installing Xfce" ./install.sh "$user"
+
+# Hyprland
+elif [ "$gui_env" = 3 ]; then
+    run_step "Installing Hyprland" yay -S --noconfirm hyprland foot waybar bemenu bemenu-wayland swaybg swaylock-clock mako thunar ttf-jetbrains-mono-nerd noto-fonts-emoji \
+    polkit-gnome pipewire pipewire-pulse wireplumber pamixer brightnessctl gvfs xdg-desktop-portal-hyprland sddm sddm-sugar-dark wlroots librewolf-bin \
+    thunar-archive-plugin hyprshot qimgv-git mousepad atril
+    
+    git clone https://github.com/cei35/Hyprland # Proposed Hyprland config
+    mkdir -p $user/.config/
+    cp -r Hyprland/* $user/.config/
+
+    echo '
+if [ "$(tty)" = "/dev/tty1" ]; then
+    exec hyprland
+fi
+' >> $user/.bash_profile
+
+    # SDDM
+    echo '[Theme]
+Current=sugar-dark' > /etc/sddm.conf
+
+    cp $user/.config/wallpaper.jpg /usr/share/sddm/themes/sugar-dark/wallpaper.jpg
+    sed -i 's|^Background=.*|Background="wallpaper.jpg"|' theme.conf
+
+    sudo systemctl enable sddm
+
+    # Swayidle (must be run as user)
+    pacman -Sy swayidle --noconfirm
+    mkdir -p $user/.config/systemd/user
+    cat << EOF >> $user/.config/systemd/user/screen-saver.service
+[Unit]
+Description=Automatic screen saver
+After=graphical.target
+
+[Service]
+ExecStart=/usr/bin/swayidle -w \
+    timeout 60 'swaylock && systemctl suspend' \
+    before-sleep 'hyprctl dispatch dpms off' \
+    after-resume 'hyprctl dispatch dpms on'
+Restart=always
+
+[Install]
+WantedBy=default.target
+EOF
+
+    sudo -u $user systemctl --user daemon-reload
+    sudo -u $user systemctl --user enable screen-saver
+
+# Gnome
+elif [ "$gui_env" = 4 ]; then
+    run_step "Installing Gnome" pacman -Sy --noconfirm xorg xorg-server gnome gdm
+    systemctl enable gdm
+
+else
+    dialog --title "ArchInstall - No GUI" --msgbox "No valid GUI environment selected, installation will be core only. Exiting..." 8 60
+    exit 1
+fi
+
+# After:
+# KDE
+# Sway
+# LXDE
+# LXQT
+# Cinnamon
