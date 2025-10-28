@@ -49,17 +49,17 @@ echo "[+] Select ISO type to build:
 
 read -n 1 -rp "[?] Choose number : " choice
 
-cp $PWD/scripts/core/core_install_uefi.sh iso/airootfs/root/install.sh
+cp ../scripts/core/core_install_uefi.sh iso/airootfs/root/install.sh
 
 case $choice in
 1)
     echo "[+] Setting up UEFI Core Only ISO..."
-    cp $PWD/scripts/core/core_post_install_uefi.sh iso/airootfs/root/post_install.sh
+    cp ../scripts/core/core_post_install_uefi.sh iso/airootfs/root/post_install.sh
     mode="core"
     ;;
 2)
     echo "[+] Setting up UEFI GUI ISO..."
-    cp $PWD/scripts/gui/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
+    cp ../scripts/gui/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
     mode="gui"
     ;;
 *)
@@ -78,7 +78,6 @@ echo "[+] Building ISO..."
 mkdir -p work out
 
 t0=$(date +%s)
-
 mkarchiso -v -w work -o out iso
 t1=$(date +%s)
 
