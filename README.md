@@ -27,4 +27,4 @@ All installation scripts are written in Bash.
 - Integrate AppArmor and Firejail  
 - Harden GRUB configuration
 - Installation with GUI (possibly as a separate ISO)
-- Maybe add MBR install
+- Add MBR install

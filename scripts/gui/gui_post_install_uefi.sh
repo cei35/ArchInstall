@@ -56,12 +56,23 @@ systemctl enable --now systemd-networkd
 2)
     systemctl enable --now iwd
 
+    t=10
+    while ! systemctl is-active --quiet iwd; do
+        ((t--))
+        if ((t == 0)); then
+            dialog --title "Network Configuration - Error" --msgbox "Error: iwd service failed to start." 8 60
+            cp /root/post_install.sh /root/post_install.sh.bak
+            exit 1
+        fi
+        sleep 0.5
+    done
+
         cat > /etc/systemd/network/$iface.network <<EOF
 [Match]
 Name=$iface
 
 [Network]
-DHCP=yes
+DHCP=ipv4
 EOF
 
     iwctl station "$iface" scan
@@ -109,6 +120,7 @@ systemctl enable --now systemd-timesyncd
 EOF
 
 # Test network connectivity
+dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
 for i in {1..10}; do # wait up to 10 seconds for an IP address
     ip addr show "$iface" | grep -q "inet " && break
     sleep 1
@@ -116,6 +128,7 @@ done
 
 dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
 if ! ping -c 3 archlinux.org &>/dev/null; then
+    cp /root/post_install.sh /root/post_install.sh.bak
     dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
     exit 1
 fi
@@ -169,7 +182,7 @@ while :; do
     [[ "$pass" == "$pass_v2" ]] && break
     dialog --title "ArchInstall - $name password mismatch" --msgbox "Passwords do not match. Please try again." 8 60
 done
-echo "$name:$password" | chpasswd
+echo "$name:$pass" | chpasswd
 
 run_step "Configuring sudoers" /bin/bash -c '
 echo "localadm ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
