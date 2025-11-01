@@ -48,6 +48,7 @@ echo "[+] Select ISO type to build:
 "
 
 read -n 1 -rp "[?] Choose number : " choice
+echo ""
 
 cp ../scripts/core/core_install_uefi.sh iso/airootfs/root/install.sh
 
@@ -84,4 +85,6 @@ t1=$(date +%s)
 ISO="archinstall_${mode}_$(date +%Y-%m-%d).iso"
 mv out/*.iso "$ISO"
 
-echo "[+] build complete: $ISO (in $((t1 - t0)) seconds)"
+tp="$((($t1 - $t0) / 60))m and $((($t1 - $t0) % 60))s"
+
+echo "[+] build complete: $ISO (in $tp)"

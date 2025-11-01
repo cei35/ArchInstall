@@ -5,8 +5,13 @@ if [[ $EUID -ne 0 ]]; then
     exit
 fi
 
-# Ignore Ctrl+C
-trap '' SIGINT
+# trap Ctrl+C
+trap 'quit' SIGINT
+
+quit() {
+    dialog --title "ArchInstall" --yesno "Cancel installation (Yes/No)?" 8 60
+    [[ $? -ne 1 ]] && exit 0
+}
 
 DEBUG=0
 [[ "$1" == "--debug" ]] && DEBUG=1
@@ -23,8 +28,10 @@ run_step() {
     fi
 }
 
-# Check internet connectivity
-dialog --title "Network Configuration" --infobox "Checking network connectivity..." 8 60
+# Start iwd service to be able to scan for wifi networks. It will be enabled later if user chooses wifi.
+systemctl start iwd
+sleep 0.5
+
 # Network configuration
 choice=$(dialog --stdout --title "Network configuration" --menu "Choose network setup:" 15 60 3 \
     1 "Ethernet (DHCP)" \
@@ -47,25 +54,15 @@ case $choice in
 Name=$iface
 
 [Network]
-DHCP=yes
+DHCP=ipv4
 EOF
 
 systemctl enable --now systemd-networkd
     ;;
 
 2)
-    systemctl enable --now iwd
-
-    t=10
-    while ! systemctl is-active --quiet iwd; do
-        ((t--))
-        if ((t == 0)); then
-            dialog --title "Network Configuration - Error" --msgbox "Error: iwd service failed to start." 8 60
-            cp /root/post_install.sh /root/post_install.sh.bak
-            exit 1
-        fi
-        sleep 0.5
-    done
+    # Now iwd can be enabled
+    systemctl enable iwd
 
         cat > /etc/systemd/network/$iface.network <<EOF
 [Match]
@@ -74,6 +71,7 @@ Name=$iface
 [Network]
 DHCP=ipv4
 EOF
+    systemctl enable --now systemd-networkd
 
     iwctl station "$iface" scan
     networks=$(iwctl station "$iface" get-networks | awk 'NR>4 {print $2 " " $2}' | sed '/^$/d')
@@ -120,16 +118,24 @@ systemctl enable --now systemd-timesyncd
 EOF
 
 # Test network connectivity
-dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
-for i in {1..10}; do # wait up to 10 seconds for an IP address
-    ip addr show "$iface" | grep -q "inet " && break
+dialog --title "Check network" --infobox "Testing network connectivity..." 8 60
+for i in {1..10}; do
+    if ip addr show "$iface" | grep -q "inet "; then
+        break
+    fi
     sleep 1
 done
 
-dialog --title "ArchInstall" --infobox "Testing network connectivity..." 8 60
+dialog --title "Check network" --infobox "Testing network connectivity..." 8 60
 if ! ping -c 3 archlinux.org &>/dev/null; then
     cp /root/post_install.sh /root/post_install.sh.bak
-    dialog --title "ArchInstall" --msgbox "Network connectivity test failed. Please check your network settings.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
+    dialog --title "Check network - Failed" --msgbox "Network connectivity test failed. Please check your network settings.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
+    exit 1
+fi
+
+if ! ping -c 3 github.com &>/dev/null; then
+    cp /root/post_install.sh /root/post_install.sh.bak
+    dialog --title "Check network - Failed" --msgbox "github.com is not reachable. Maybe you are using an ipv6-only network.\nAfter fixing the issue, restart the installation with ./install.sh" 8 60
     exit 1
 fi
 

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
-# Ignore Ctrl+C
-trap '' SIGINT
+# trap Ctrl+C
+trap 'quit' SIGINT
+
+quit() {
+    dialog --title "ArchInstall" --yesno "Cancel installation (Yes/No)?" 8 60
+    [[ $? -ne 1 ]] && exit 0
+}
 
 DEBUG=0
 [[ "$1" == "--debug" ]] && DEBUG=1
