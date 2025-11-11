@@ -233,10 +233,11 @@ run_step "Update system" yay -Syu
 # Gui Environment setup
 
 user=$name
+user_env="/home/$user"
 gui_env=""
 
 # Choose GUI environment
-gui_env=$(dialog --stdout --title "Choose GUI environment" --menu "Choose your preferred GUI environment:" 15 60 3 \
+gui_env=$(dialog --stdout --title "Choose GUI environment" --menu "Choose your GUI environment:" 15 60 3 \
     1 "None (core only)" \
     2 "XFCE" \
     3 "HYPRLAND" \
@@ -245,32 +246,32 @@ gui_env=$(dialog --stdout --title "Choose GUI environment" --menu "Choose your p
 # Set system locale to French (just in case)
 localectl set-x11-keymap fr
 
-if [ "$gui_env" = 1 ]; then
+if [ "$gui_env" = "1" ]; then
     dialog --title "ArchInstall - No GUI" --msgbox "No GUI environment selected, installation will be core only. Exiting..." 8 60
     exit 0
 
 # Xfce
-elif [ "$gui_env" = 2 ]; then
+elif [ "$gui_env" = "2" ]; then
     git clone https://github.com/cei35/Xfce4 # Proposed Xfce config
     cd Xfce4/
     chmod +x install.sh
     run_step "Installing Xfce" ./install.sh "$user"
 
 # Hyprland
-elif [ "$gui_env" = 3 ]; then
-    run_step "Installing Hyprland" yay -S --needed--noconfirm hyprland foot waybar bemenu bemenu-wayland swaybg swaylock-clock mako thunar ttf-jetbrains-mono-nerd noto-fonts-emoji \
+elif [ "$gui_env" = "3" ]; then
+    run_step "Installing Hyprland" yay -S --needed --noconfirm hyprland foot waybar bemenu bemenu-wayland swaybg swaylock-clock mako thunar ttf-jetbrains-mono-nerd noto-fonts-emoji \
     polkit-gnome pipewire pipewire-pulse wireplumber pamixer brightnessctl gvfs xdg-desktop-portal-hyprland sddm sddm-sugar-dark wlroots librewolf-bin \
-    thunar-archive-plugin hyprshot qimgv-git mousepad atril
+    thunar-archive-plugin hyprshot qimgv-git mousepad atril code libreoffice-fresh keepassxc virtualbox linux-headers
     
     git clone https://github.com/cei35/Hyprland # Proposed Hyprland config
-    mkdir -p $user/.config/
-    cp -r Hyprland/* $user/.config/
+    mkdir -p $user_env/.config/
+    cp -r Hyprland/* $user_env/.config/
 
     echo '
 if [ "$(tty)" = "/dev/tty1" ]; then
     exec hyprland
 fi
-' >> $user/.bash_profile
+' >> $user_env/.bash_profile
 
     # SDDM
     echo '[Theme]
@@ -283,16 +284,16 @@ Current=sugar-dark' > /etc/sddm.conf
 
     # Swayidle (must be run as user)
     pacman -Sy swayidle --noconfirm --needed
-    mkdir -p $user/.config/systemd/user
-    cat << EOF >> $user/.config/systemd/user/screen-saver.service
+    mkdir -p $user_env/.config/systemd/user
+    cat << EOF >> $user_env/.config/systemd/user/screen-saver.service
 [Unit]
 Description=Automatic screen saver
 After=graphical.target
 
 [Service]
-ExecStart=/usr/bin/swayidle -w \
-    timeout 60 'swaylock && systemctl suspend' \
-    before-sleep 'hyprctl dispatch dpms off' \
+ExecStart=/usr/bin/swayidle -w \\
+    timeout 60 'swaylock && systemctl suspend' \\
+    before-sleep 'hyprctl dispatch dpms off' \\
     after-resume 'hyprctl dispatch dpms on'
 Restart=always
 
@@ -303,8 +304,10 @@ EOF
     sudo -u $user systemctl --user daemon-reload
     sudo -u $user systemctl --user enable screen-saver
 
+    chown -R $user:$user $user_env/.config/
+
 # Gnome
-elif [ "$gui_env" = 4 ]; then
+elif [ "$gui_env" = "4" ]; then
     run_step "Installing Gnome" pacman -Sy --noconfirm --needed xorg xorg-server gnome gdm
     systemctl enable gdm
 
