@@ -261,13 +261,13 @@ echo "KEYMAP=fr" > /etc/vconsole.conf
 hwclock --systohc
 echo "$hostname" > /etc/hostname
 pacman -Sy lvm2 --noconfirm
-sed -i '/^HOOKS=/ s/filesystems/filesystems encrypt lvm2 usr/' /etc/mkinitcpio.conf
+sed -i '/^HOOKS=/ s/filesystems/filesystems sd-encrypt lvm2 usr/' /etc/mkinitcpio.conf
 mkinitcpio -P
 echo "root:$password" | chpasswd
 
 pacman -Sy grub efibootmgr --noconfirm
 sed -i 's/^#\s*GRUB_ENABLE_CRYPTODISK=y/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
-sed -i '8i\GRUB_CMDLINE_LINUX="cryptdevice=UUID='$(blkid -s UUID -o value ${part2})':vg_chif root=/dev/mapper/vg_chif-lv_root"' /etc/default/grub
+sed -i '8i\GRUB_CMDLINE_LINUX="rd.luks.name='$(blkid -s UUID -o value ${part2})'=vg_chif root=/dev/mapper/vg_chif-lv_root"' /etc/default/grub
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
