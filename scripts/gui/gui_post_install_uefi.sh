@@ -247,7 +247,7 @@ gui_env=$(dialog --stdout --title "Choose GUI environment" --menu "Choose your G
 localectl set-x11-keymap fr
 
 if [ "$gui_env" = "1" ]; then
-    dialog --title "ArchInstall - No GUI" --msgbox "No GUI environment selected, installation will be core only. Exiting..." 8 60
+    dialog --title "ArchInstall - Core" --msgbox "You have choosen core install." 8 60
     exit 0
 
 # Xfce
@@ -314,6 +314,25 @@ elif [ "$gui_env" = "4" ]; then
 else
     dialog --title "ArchInstall - No GUI" --msgbox "No valid GUI environment selected, installation will be core only. Exiting..." 8 60
     exit 1
+fi
+
+dialog --title "ArchInstall - Grub Background" --yesno "Want to add custom background ?" 8 60
+if [[ $? -eq 0 ]]; then
+    mkdir -p /boot/grub/theme
+    wget -O /boot/grub/theme/background.jpg https://raw.githubusercontent.com/cei35/ArchInstall/main/Images/background.jpg
+
+    sed -i '/GRUB_BACKGROUND=/d' /etc/default/grub
+    echo 'GRUB_BACKGROUND="/boot/grub/theme/background.jpg"' >> /etc/default/grub
+
+    cat <<EOF > /etc/grub.d/06_colors
+#!/bin/sh
+echo "set color_normal=black/black"
+echo "set menu_color_normal=black/black"
+echo "set menu_color_highlight=white/black"
+EOF
+
+    chmod +x /etc/grub.d/06_colors
+    grub-mkconfig -o /boot/grub/grub.cfg
 fi
 
 dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
