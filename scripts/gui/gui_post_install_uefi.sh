@@ -382,12 +382,11 @@ mfa() {
 
     pacman -Sy --needed --noconfirm libpam-google-authenticator qrencode oath-toolkit
 
-    mkdir -p /home/localadm/.local
-    wget -O /home/localadm/.local/mfa.sh https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/mfa.sh
-    chmod +x /home/localadm/.local/mfa.sh
+    wget -O /home/localadm/mfa.sh https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/mfa.sh
+    chmod +x /home/localadm/mfa.sh
 
     while true; do
-        sudo -u localadm -i /bin/bash "/home/localadm/.local/mfa.sh"
+        sudo -u localadm -i /bin/bash "/home/localadm/mfa.sh"
 
         status=$?
         if [ $status -eq 0 ]; then
@@ -490,15 +489,15 @@ EOF
 }
 
 while true; do
-    CHOIX=$(dialog --stdout --checklist "Choisis (Espace = coche)" 15 40 5 \
+    CHOIX=$(dialog --stdout --checklist "Choisis (Espace = coche)" 20 60 5 \
         1 "SSH server - not yet implemented"          off \
-        2 "Apparmor - not yet implemented"            on  \
+        2 "Apparmor - not yet implemented"            off  \
         3 "SELinux - not yet implemented"             off \
         4 "Firejail"            on  \
         5 "Add MFA to localadm" on \
         6 "Auditd"              off \
         7 "Hardened Malloc - not yet implemented"     off \
-        8 "Grub Password"       on\ 
+        8 "Grub Password"       on \
         9 "Grub background"     on)
 
     [[ $? -ne 0 ]] && exit 1

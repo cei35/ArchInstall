@@ -2,11 +2,11 @@
 
 # need dialog google-authenticator qrencode oathtool
 
-CHOICES=$(dialog --clear --title "Security Configuration" --checklist "Select desired options with the spacebar:" 15 70 4 \ 
-    "TOTP" "Time-based tokens (Standard)" ON \ 
-    "REUSE" "Prohibit reuse of the same code" ON \ 
-    "RATE" "Limit to 3 attempts every 30 seconds" ON \ 
-    "SKEW" "Allow a larger time buffer" OFF \ 
+CHOICES=$(dialog --clear --title "Security Configuration" --separate-output --checklist "Select desired options with the spacebar:" 15 70 4 \
+    "TOTP" "Time-based tokens (Standard)" ON \
+    "REUSE" "Prohibit reuse of the same code" ON \
+    "RATE" "Limit to 3 attempts every 30 seconds" ON \
+    "SKEW" "Allow a larger time buffer" OFF \
 2>&1 >/dev/tty)
 
 if [ $? -ne 0 ]; then
@@ -21,7 +21,7 @@ ARGS="-f"
 [[ $CHOICES == *"SKEW"* ]] && ARGS="$ARGS -w 17" || ARGS="$ARGS -w 3"
 
 TEMP_OUT=$(mktemp)
-google-authenticator $ARGS < /dev/null > "$TEMP_OUT" 2>&1
+echo "-1" | google-authenticator $ARGS > "$TEMP_OUT" 2>&1
 
 CONF_FILE="$HOME/.google_authenticator"
 if [ ! -f "$CONF_FILE" ]; then
@@ -38,11 +38,11 @@ HOST=$(hostname)
 URI="otpauth://totp/${USER}@${HOST}?secret=${SECRET}&issuer=${HOST}"
 
 while true; do
-    ACTION=$(dialog --clear --title "Generation Successful" --menu "Your 2FA is ready. What do you want to do?" 15 65 5 \ 
-        "1" "Scan QR Code" \ 
-        "2" "View Secret Key (Manual Entry)" \ 
-        "3" "View Backup Codes" \ 
-        "4" "Finish and Exit" \ 
+    ACTION=$(dialog --clear --title "Generation Successful" --menu "Your 2FA is ready. What do you want to do?" 15 65 5 \
+        "1" "Scan QR Code" \
+        "2" "View Secret Key (Manual Entry)" \
+        "3" "View Backup Codes" \
+        "4" "Finish and Exit" \
     2>&1 >/dev/tty)
     if [ $? -ne 0 ]; then break; fi
 
