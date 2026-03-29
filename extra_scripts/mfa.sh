@@ -25,7 +25,7 @@ echo "-1" | google-authenticator $ARGS > "$TEMP_OUT" 2>&1
 
 CONF_FILE="$HOME/.google_authenticator"
 if [ ! -f "$CONF_FILE" ]; then
-    dialog --title "Erreur" --msgbox "The generation has failed.\nLogs:\n$(cat $TEMP_OUT)" 15 60
+    dialog --title "Error" --msgbox "The generation has failed.\nLogs:\n$(cat $TEMP_OUT)" 15 60
     rm -f "$TEMP_OUT"
     exit 1
 fi

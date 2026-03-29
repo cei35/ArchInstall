@@ -252,10 +252,10 @@ if [ "$gui_env" = "1" ]; then
 
 # Xfce
 elif [ "$gui_env" = "2" ]; then
-    git clone https://github.com/cei35/Xfce4 # Proposed Xfce config - install with localadm instead of main user
+    git clone https://github.com/cei35/Xfce4 # Proposed Xfce config
     cd Xfce4/
     chmod +x install.sh
-    run_step "Installing Xfce" ./install.sh localadm
+    run_step "Installing Xfce" ./install.sh bob localadm
 
 # Hyprland
 elif [ "$gui_env" = "3" ]; then

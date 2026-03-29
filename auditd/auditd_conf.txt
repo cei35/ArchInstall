@@ -10,17 +10,23 @@ flush = INCREMENTAL_ASYNC
 freq = 50
 
 # Log rotation
-max_log_file = 100              # 100MB before rotating
-num_logs = 500                 	# Keep 100 rotated logs
-max_log_file_action = ROTATE	# 50GB total log 
+# 100MB before rotating
+max_log_file = 100
+# Keep 100 rotated logs
+num_logs = 500
+# 50GB total log
+max_log_file_action = ROTATE
 
 # Alerting
-space_left = 100			# Alert at 100MB remaining
+# Alert at 100MB remaining
+space_left = 100
 space_left_action = EMAIL
-action_mail_acct = adresse@mail.com	# Change This
+# Change This
+action_mail_acct = adresse@mail.com
 
 verify_email = yes
-admin_space_left = 50          # SUSPEND at 50MB remaining
+# SUSPEND at 50MB remaining
+admin_space_left = 50
 admin_space_left_action = SUSPEND
 disk_full_action = HALT
 disk_error_action = HALT
@@ -44,4 +50,3 @@ max_restarts = 10
 
 plugin_dir = /etc/audit/plugins.d
 end_of_event_timeout = 2
-
