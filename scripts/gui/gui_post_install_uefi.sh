@@ -150,7 +150,7 @@ EOF
 run_step "Installing packages" /bin/bash -e <<EOF
 chmod -R 700 /etc/iptables
 
-pacman -Syu --needed --noconfirm make base-devel git cron wget lynx nnn python3 python-pip go sudo openssh
+pacman -Syu --needed --noconfirm make base-devel git cron wget lynx nnn python3 python-pip go sudo openssh netcat tree
 useradd -m -U -s /bin/bash localadm
 useradd -m -U -s /bin/bash rescue
 EOF
@@ -252,10 +252,10 @@ if [ "$gui_env" = "1" ]; then
 
 # Xfce
 elif [ "$gui_env" = "2" ]; then
-    git clone https://github.com/cei35/Xfce4 # Proposed Xfce config
+    git clone https://github.com/cei35/Xfce4 # Proposed Xfce config - install with localadm instead of main user
     cd Xfce4/
     chmod +x install.sh
-    run_step "Installing Xfce" ./install.sh "$user"
+    run_step "Installing Xfce" ./install.sh localadm
 
 # Hyprland
 elif [ "$gui_env" = "3" ]; then
@@ -316,8 +316,162 @@ else
     exit 1
 fi
 
-dialog --title "ArchInstall - Grub Background" --yesno "Want to add custom background ?" 8 60
-if [[ $? -eq 0 ]]; then
+# 1
+ssh_server() {
+    dialog --title "Extra configurations" --infobox "Configuring SSH server" 8 60
+}
+
+# 2
+apparmor() {
+    dialog --title "Extra configurations" --infobox "Configuring Apparmor" 8 60
+}
+
+# 3
+selinux() {
+    dialog --title "Extra configurations" --infobox "Install SELinux" 8 60
+}
+
+# 4
+firejail() {
+    dialog --title "Extra configurations" --infobox "Add Firejail" 8 60
+
+    pacman -Sy --needed --noconfirm firejail
+
+    mkdir -p /etc/firejail
+    cat <<EOF > /etc/firejail/globals.local
+private-etc
+private-dev
+caps.drop all
+#seccomp (disabled by default)
+#nonewprivs (disabled by default)
+protocol unix,inet,inet6
+netfilter
+noroot
+# nosound (disabled by default)
+EOF
+
+    ### !! use $user
+    cat <<EOF >> /etc/firejail/firejail.users
+localadm
+$user
+EOF
+
+    mkdir -p /etc/pacman.d/hooks
+    cat <<EOF > /etc/pacman.d/hooks/firejail.hook
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Target = usr/bin/*
+Target = usr/share/applications/*.desktop
+
+[Action]
+Description = Firejail symbolic links update (firecfg)...
+When = PostTransaction
+Depends = firejail
+Exec = /bin/sh -c 'firecfg >/dev/null 2>&1'
+EOF
+
+    firecfg >/dev/null 2>&1
+}
+
+# 5
+mfa() {
+    dialog --title "Extra configurations" --infobox "Add MFA to localadm" 8 60
+
+    pacman -Sy --needed --noconfirm libpam-google-authenticator qrencode oath-toolkit
+
+    mkdir -p /home/localadm/.local
+    wget -O /home/localadm/.local/mfa.sh https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/mfa.sh
+    chmod +x /home/localadm/.local/mfa.sh
+
+    while true; do
+        sudo -u localadm -i /bin/bash "/home/localadm/.local/mfa.sh"
+
+        status=$?
+        if [ $status -eq 0 ]; then
+            break
+        else
+            dialog --title "Extra config - MFA Failure" --yesno "Something went wrong, do you want to start again?" 8 60
+            [[ $? -ne 0 ]] && return
+        fi
+    done
+
+    echo -e "auth required pam_google_authenticator.so nullok" | tee -a /etc/pam.d/su /etc/pam.d/lightdm
+
+}
+
+# 6
+install_auditd() {
+    dialog --title "Extra configurations" --infobox "Install Auditd" 8 60
+
+    pacman -Sy --needed audit
+
+    mkdir -p /var/log/audit/
+
+    wget -O /etc/audit/auditd.conf https://raw.githubusercontent.com/cei35/ArchInstall/main/auditd/auditd_conf.txt
+    wget -O /etc/audit/rules.d/audit.rules https://raw.githubusercontent.com/cei35/ArchInstall/main/auditd/auditd_rules.txt
+
+    augenrules --load
+    systemctl enable auditd
+
+}
+
+# 7
+hardened_malloc() {
+    dialog --title "Extra configurations" --infobox "Add Hardened Malloc" 8 60
+}
+
+# 8
+secure_grub(){
+    dialog --title "Extra configurations" --infobox "Configure GRUB sécurity..." 8 60
+
+    if ! mountpoint -q "/boot"; then
+        mount "/boot" || {
+            dialog --title "Error" --msgbox "Can't mount /boot partition" 8 60
+            return 1
+        }
+    fi
+
+    get_hash() {
+        local user="$1"
+
+        local pass=$(dialog --clear --insecure --passwordbox "password for '$user' :" 10 60 3>&1 1>&2 2>&3)
+        
+        if [[ -z "$pass" ]]; then
+            return 1
+        fi
+
+        printf "%s\n%s\n" "$pass" "$pass" | grub-mkpasswd-pbkdf2 | grep -o 'grub.pbkdf2.*'
+    }
+
+    ADMIN_HASH=$(get_hash "admin")
+    [[ -z "$ADMIN_HASH" ]] && exit 1
+    USER_HASH=$(get_hash "user")
+    [[ -z "$USER_HASH" ]] && exit 1
+
+    cat <<EOF >> /etc/grub.d/40_custom
+set superusers="admin"      
+password_pbkdf2 admin $ADMIN_HASH
+password_pbkdf2 user $USER_HASH
+
+insmod keylayouts
+keymap fr
+EOF
+
+    sed -i '/menuentry/ s/\${CLASS}/--unrestricted \${CLASS}/' /etc/grub.d/10_linux
+    yay -S ckbcomp --noconfirm --needed
+    mkdir -p /boot/grub/layouts
+    grub-kbdcomp -o /boot/grub/layouts/fr.gkb fr
+    sed -i 's/^#*GRUB_TERMINAL_INPUT=.*/GRUB_TERMINAL_INPUT="at_keyboard"/' /etc/default/grub
+
+    grub-mkconfig -o /boot/grub/grub.cfg
+}
+
+# 9
+grub_background(){
+    dialog --title "Extra configurations" --infobox "Add background to GRUB..." 8 60
     mkdir -p /boot/grub/theme
     wget -O /boot/grub/theme/background.jpg https://raw.githubusercontent.com/cei35/ArchInstall/main/Images/background.jpg
 
@@ -333,7 +487,45 @@ EOF
 
     chmod +x /etc/grub.d/06_colors
     grub-mkconfig -o /boot/grub/grub.cfg
-fi
+}
+
+while true; do
+    CHOIX=$(dialog --stdout --checklist "Choisis (Espace = coche)" 15 40 5 \
+        1 "SSH server - not yet implemented"          off \
+        2 "Apparmor - not yet implemented"            on  \
+        3 "SELinux - not yet implemented"             off \
+        4 "Firejail"            on  \
+        5 "Add MFA to localadm" on \
+        6 "Auditd"              off \
+        7 "Hardened Malloc - not yet implemented"     off \
+        8 "Grub Password"       on\ 
+        9 "Grub background"     on)
+
+    [[ $? -ne 0 ]] && exit 1
+
+    # vérif incompatibilité entre Apparmor et SELinux
+    if [[ "$CHOIX" == *"2"* && "$CHOIX" == *"3"* ]]; then
+        dialog --msgbox "AppArmor et SELinux sont incompatibles." 6 40
+    else
+        break
+    fi
+done
+
+for opt in $CHOIX; do
+    case $opt in
+        "1" ) ssh_server ;;
+        "2" ) apparmor ;;
+        "3" ) selinux ;;
+        "4" ) firejail ;;
+        "5" ) mfa ;;
+        "6" ) install_auditd ;;
+        "7" ) hardened_malloc ;;
+        "8" ) secure_grub ;;
+        "9" ) grub_background ;;
+    esac
+done
+
+## + Adding auto secure boot
 
 dialog --title "ArchInstall - Post-install" --yesno "Installation complete. Reboot now ?" 8 60
 [[ $? -ne 0 ]] && exit 0

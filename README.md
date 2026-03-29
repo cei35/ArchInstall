@@ -38,10 +38,25 @@ Install and configure GUI environment if selected
 - **Hyprland** Proposed config based on [Hyprland config](https://github.com/cei35/Hyprland) (with SDDM)
 - **Xfce4** Proposed config based on [Xfce4 config](https://github.com/cei35/Xfce4) (with lightdm)
 
+### Additionnal Setup
+
+- **Firejail:** Sandboxing tool installation with custom globals.local and automated Pacman hooks for all binaries.
+- **MFA for localadm:** Adds Google Authenticator (2FA) requirement for su and lightdm to secure the administrator account.
+- **Grub Security:** Add a password to the bootloader to prevent unauthorized editing of kernel parameters at startup.
+- **Grub Background:** Customizes the GRUB boot menu with a dedicated background image.
+- **Auditd:** Kernel-level auditing for security monitoring.
+
+#### Next One ~ TODOs
+
+- SSH Server
+- Apparmor
+- SELinux
+- Hardened Malloc
+- Add Secure boot config to Grub Security
+
 ## TODO
 
 - Automate SSH setup  
-- Integrate AppArmor and Firejail  
+- Integrate AppArmor
 - Harden GRUB configuration
-- Installation with GUI (possibly as a separate ISO)
 - Add MBR install
