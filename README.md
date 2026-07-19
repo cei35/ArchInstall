@@ -24,7 +24,7 @@ All installation scripts are written in Bash.
 ### Post-installation
 
 - Package installation (git, cron, wget, lynx, python3, go, sudo, openssh...)
-- Creation of `localadm` and `rescue` users
+- Creation of `localadm` and `rescue` users with their own bashrc/vimrc files
 - Add main user without sudo rights
 - Sudo configuration
 - Installation of `yay` (AUR helper)
@@ -46,6 +46,12 @@ Install and configure GUI environment if selected
 - **Grub Background:** Customizes the GRUB boot menu with a dedicated background image.
 - **Auditd:** Kernel-level auditing for security monitoring.
 
+### Plymouth
+Added a simple configuration for **Plymouth** using the same background as Grub.
+- When you are prompted to enter your password, the following message appears (at the bottom of the screen): __"Enter disk password."__
+- When you start typing, the following message appears: __"Typing Password..."__
+- If the message __"Enter disk password."__ reappears, it indicates that you have entered an incorrect password.
+
 #### Next One ~ TODOs
 
 - SSH Server
@@ -53,10 +59,3 @@ Install and configure GUI environment if selected
 - SELinux
 - Hardened Malloc
 - Add Secure boot config to Grub Security
-
-## TODO
-
-- Automate SSH setup  
-- Integrate AppArmor
-- Harden GRUB configuration
-- Add MBR install

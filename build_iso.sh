@@ -8,7 +8,6 @@
 #   - Core 
 #   - GUI
 #
-#
 # TODO:
 # Add MBR install AND Server version (with SSH/Auditd...)
 
@@ -42,32 +41,10 @@ grep -qF "dialog" iso/packages.x86_64 || {
 }
 
 echo ""
-echo "[+] Select ISO type to build:
-1. UEFI Core Only
-2. UEFI GUI (only Xfce4, Hyprland or Gnome for now)
-"
-
-read -n 1 -rp "[?] Choose number : " choice
-echo ""
+echo "[+] Setting up UEFI + GUI ISO..."
 
 cp ../scripts/core/core_install_uefi.sh iso/airootfs/root/install.sh
-
-case $choice in
-1)
-    echo "[+] Setting up UEFI Core Only ISO..."
-    cp ../scripts/core/core_post_install_uefi.sh iso/airootfs/root/post_install.sh
-    mode="core"
-    ;;
-2)
-    echo "[+] Setting up UEFI GUI ISO..."
-    cp ../scripts/gui/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
-    mode="gui"
-    ;;
-*)
-    echo "[-] Invalid choice. Exiting."
-    exit 1
-    ;;
-esac
+cp ../scripts/gui/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
 
 chmod +x iso/airootfs/root/*.sh
 
@@ -82,7 +59,7 @@ t0=$(date +%s)
 mkarchiso -v -w work -o out iso
 t1=$(date +%s)
 
-ISO="archinstall_${mode}_$(date +%Y-%m-%d).iso"
+ISO="archinstall_$(date +%Y-%m-%d).iso"
 mv out/*.iso "$ISO"
 
 tp="$((($t1 - $t0) / 60))m and $((($t1 - $t0) % 60))s"

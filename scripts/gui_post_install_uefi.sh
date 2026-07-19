@@ -213,8 +213,10 @@ chmod +x /usr/local/bin/pacman
 # Setup localadm
 run_step "Setup localadm" su - localadm -s /bin/bash -c '
 cd ~
-echo "alias ll=\"ls -lahF\"" >> ~/.bashrc
-echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;33m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '\''" >> ~/.bashrc
+wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.bashrc
+wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.vimrc
+mkdir -p ~/.vim/undodir
+sed -i 's/32m/33m/g' ~/.bashrc
 
 git clone https://aur.archlinux.org/yay.git
 cd yay
@@ -223,9 +225,14 @@ makepkg --syncdeps --install --needed --noconfirm --clean
 # Setup $name
 run_step "Setup $name" su - "$name" -s /bin/bash -c '
 cd ~
-echo "alias ll=\"ls -lahF\"" >> ~/.bashrc
-echo "PS1='\''\${debian_chroot:+(\$debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '\''" >> ~/.bashrc
+wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.bashrc
+wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.vimrc
+mkdir -p ~/.vim/undodir
 '
+
+# Discard unused pacman packages weekly
+pacman -S --noconfirm --needed pacman-contrib
+systemctl enable --now paccache.timer
 
 # prolly nothing to update but just in case
 run_step "Update system" yay -Syu
@@ -315,6 +322,13 @@ else
     dialog --title "ArchInstall - No GUI" --msgbox "No valid GUI environment selected, installation will be core only. Exiting..." 8 60
     exit 1
 fi
+
+# Audio
+run_step "Adding audio packages" pacman -S --noconfirm --needed pipewire-pulse pipewire-alsa pipewire-jack wireplumber
+sudo -u $user systemctl --user daemon-reload
+sudo -u $user systemctl --user --enable-now pipewire
+sudo -u $user systemctl --user --enable-now pipewire-pulse
+sudo -u $user systemctl --user --enable-now wireplumber
 
 # 1
 ssh_server() {
@@ -472,10 +486,10 @@ EOF
 grub_background(){
     dialog --title "Extra configurations" --infobox "Add background to GRUB..." 8 60
     mkdir -p /boot/grub/theme
-    wget -O /boot/grub/theme/background.jpg https://raw.githubusercontent.com/cei35/ArchInstall/main/Images/background.jpg
+    wget -O /boot/grub/theme/background.png https://raw.githubusercontent.com/cei35/ArchInstall/main/Images/background.png
 
     sed -i '/GRUB_BACKGROUND=/d' /etc/default/grub
-    echo 'GRUB_BACKGROUND="/boot/grub/theme/background.jpg"' >> /etc/default/grub
+    echo 'GRUB_BACKGROUND="/boot/grub/theme/background.png"' >> /etc/default/grub
 
     cat <<EOF > /etc/grub.d/06_colors
 #!/bin/sh
@@ -488,8 +502,70 @@ EOF
     grub-mkconfig -o /boot/grub/grub.cfg
 }
 
+plymouth_style(){
+    dialog --title "Extra configurations" --infobox "Add a Plymouth theme with the same background as Grub" 8 60
+
+    run_step "Installing Plymouth" pacman -S --noconfirm --needed plymouth
+    sed -i '/^HOOKS=/ s/systemd/systemd plymouth/' /etc/mkinitcpio.conf
+    run_step "Update Initramfs" mkinitcpio -P
+    
+    sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/s/"$/ splash"/' /etc/default/grub
+    run_step "Running mk-config" grub-mkconfig -o /boot/grub/grub.cfg
+
+    mkdir -p /usr/share/plymouth/themes/custom
+
+    cat <<EOF > /usr/share/plymouth/themes/custom/custom.plymouth
+[Plymouth Theme]
+Name=Custom
+Description=Simple custom theme
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/custom
+ScriptFile=/usr/share/plymouth/themes/custom/custom.script
+EOF
+
+    cat <<EOF > /usr/share/plymouth/themes/custom/custom.script
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
+
+wallpaper_img = Image("custom.png");
+resized_wallpaper = wallpaper_img.Scale(screen_width, screen_height);
+wallpaper_sprite = Sprite(resized_wallpaper);
+wallpaper_sprite.SetZ(-100);
+wallpaper_sprite.SetX(0);
+wallpaper_sprite.SetY(0);
+
+global.status_sprite = Script.Null;
+
+fun show_status_text(text) {
+    global.status_sprite = Script.Null;
+    
+    text_img = Image.Text(text, 0.0, 0.0, 0.0, 1.0, "Adwaita Mono 12");
+    global.status_sprite = Sprite(text_img);
+    
+    global.status_sprite.SetX((screen_width - text_img.GetWidth()) / 2);
+    global.status_sprite.SetY(screen_height * 0.95);
+    global.status_sprite.SetZ(100);
+}
+
+fun password_callback(prompt, bullets) {
+    if (bullets > 0) {
+        show_status_text("Typing Password...");
+    } else {
+        show_status_text("Enter disk password.");
+    }
+}
+
+Plymouth.SetDisplayPasswordFunction(password_callback);
+EOF
+    wget -O /usr/share/plymouth/themes/custom/custom.png https://raw.githubusercontent.com/cei35/ArchInstall/main/Images/background.png
+    run_step "Updating Plymouth theme" plymouth-set-default-theme -R custom
+
+}
+
 while true; do
-    CHOIX=$(dialog --stdout --checklist "Choisis (Espace = coche)" 20 60 5 \
+    CHOIX=$(dialog --stdout --checklist "Choose (use space)" 20 60 5 \
         1 "SSH server - not yet implemented"          off \
         2 "Apparmor - not yet implemented"            off  \
         3 "SELinux - not yet implemented"             off \
@@ -498,13 +574,14 @@ while true; do
         6 "Auditd"              off \
         7 "Hardened Malloc - not yet implemented"     off \
         8 "Grub Password"       on \
-        9 "Grub background"     on)
+        9 "Grub background"     on \
+        10 "Plymouth Style"     on)
 
     [[ $? -ne 0 ]] && exit 1
 
     # vérif incompatibilité entre Apparmor et SELinux
     if [[ "$CHOIX" == *"2"* && "$CHOIX" == *"3"* ]]; then
-        dialog --msgbox "AppArmor et SELinux sont incompatibles." 6 40
+        dialog --msgbox "AppArmor et SELinux are incompatible." 6 40
     else
         break
     fi
@@ -521,6 +598,7 @@ for opt in $CHOIX; do
         "7" ) hardened_malloc ;;
         "8" ) secure_grub ;;
         "9" ) grub_background ;;
+        "10" ) plymouth_style ;;
     esac
 done
 
