@@ -213,8 +213,8 @@ chmod +x /usr/local/bin/pacman
 # Setup localadm
 run_step "Setup localadm" su - localadm -s /bin/bash -c '
 cd ~
-wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.bashrc
-wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.vimrc
+wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/.bashrc
+wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/.vimrc
 mkdir -p ~/.vim/undodir
 sed -i 's/32m/33m/g' ~/.bashrc
 
@@ -225,8 +225,8 @@ makepkg --syncdeps --install --needed --noconfirm --clean
 # Setup $name
 run_step "Setup $name" su - "$name" -s /bin/bash -c '
 cd ~
-wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.bashrc
-wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/.vimrc
+wget -O ~/.bashrc https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/.bashrc
+wget -O ~/.vimrc https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/.vimrc
 mkdir -p ~/.vim/undodir
 '
 
@@ -396,7 +396,7 @@ mfa() {
 
     pacman -Sy --needed --noconfirm libpam-google-authenticator qrencode oath-toolkit
 
-    wget -O /home/localadm/mfa.sh https://raw.githubusercontent.com/cei35/ArchInstall/main/extra_scripts/mfa.sh
+    wget -O /home/localadm/mfa.sh https://raw.githubusercontent.com/cei35/ArchInstall/main/scripts/mfa.sh
     chmod +x /home/localadm/mfa.sh
 
     while true; do
@@ -423,8 +423,8 @@ install_auditd() {
 
     mkdir -p /var/log/audit/
 
-    wget -O /etc/audit/auditd.conf https://raw.githubusercontent.com/cei35/ArchInstall/main/auditd/auditd_conf.txt
-    wget -O /etc/audit/rules.d/audit.rules https://raw.githubusercontent.com/cei35/ArchInstall/main/auditd/auditd_rules.txt
+    wget -O /etc/audit/auditd.conf https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/auditd/auditd_conf.txt
+    wget -O /etc/audit/rules.d/audit.rules https://raw.githubusercontent.com/cei35/ArchInstall/main/config_files/auditd/auditd_rules.txt
 
     augenrules --load
     systemctl enable auditd
