@@ -52,7 +52,7 @@ Added a simple configuration for **Plymouth** using the same background as Grub.
 - When you start typing, the following message appears: __"Typing Password..."__
 - If the message __"Enter disk password."__ reappears, it indicates that you have entered an incorrect password.
 
-#### Next One ~ TODOs
+#### Next One - TODOs
 
 - SSH Server
 - Apparmor

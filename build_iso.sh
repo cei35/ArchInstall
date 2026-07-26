@@ -43,8 +43,8 @@ grep -qF "dialog" iso/packages.x86_64 || {
 echo ""
 echo "[+] Setting up UEFI + GUI ISO..."
 
-cp ../scripts/core/core_install_uefi.sh iso/airootfs/root/install.sh
-cp ../scripts/gui/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
+cp ../scripts/core_install_uefi.sh iso/airootfs/root/install.sh
+cp ../scripts/gui_post_install_uefi.sh iso/airootfs/root/post_install.sh
 
 chmod +x iso/airootfs/root/*.sh
 
@@ -60,7 +60,7 @@ mkarchiso -v -w work -o out iso
 t1=$(date +%s)
 
 ISO="archinstall_$(date +%Y-%m-%d).iso"
-mv out/*.iso "$ISO"
+# mv out/*.iso "$ISO" - useless
 
 tp="$((($t1 - $t0) / 60))m and $((($t1 - $t0) % 60))s"
 

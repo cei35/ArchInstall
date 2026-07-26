@@ -324,7 +324,7 @@ else
 fi
 
 # Audio
-run_step "Adding audio packages" pacman -S --noconfirm --needed pipewire-pulse pipewire-alsa pipewire-jack wireplumber
+run_step "Adding audio packages" pacman -S --noconfirm --needed --ask 4 pipewire-pulse pipewire-alsa pipewire-jack wireplumber
 sudo -u $user systemctl --user daemon-reload
 sudo -u $user systemctl --user --enable-now pipewire
 sudo -u $user systemctl --user --enable-now pipewire-pulse
@@ -474,9 +474,10 @@ keymap fr
 EOF
 
     sed -i '/menuentry/ s/\${CLASS}/--unrestricted \${CLASS}/' /etc/grub.d/10_linux
-    yay -S ckbcomp --noconfirm --needed
+    # ckbcomp is only available in the AUR. Download the standalone Perl script instead
+    curl -sL https://salsa.debian.org/installer-team/console-setup/-/raw/master/Keyboard/ckbcomp -o /tmp/ckbcomp
     mkdir -p /boot/grub/layouts
-    grub-kbdcomp -o /boot/grub/layouts/fr.gkb fr
+    perl /tmp/ckbcomp fr | grub-mklayout -o /boot/grub/layouts/fr.gkb
     sed -i 's/^#*GRUB_TERMINAL_INPUT=.*/GRUB_TERMINAL_INPUT="at_keyboard"/' /etc/default/grub
 
     grub-mkconfig -o /boot/grub/grub.cfg
